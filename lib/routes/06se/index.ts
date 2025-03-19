@@ -29,7 +29,6 @@ const handler = async (ctx, category) => {
                         const src = $img.attr('data-src');
                         if (src && src.includes('url=')) {
                             const realSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
-                            console.log('Image real src:', realSrc);
                             return `<img src="${realSrc}" />`;
                         }
                         return '';
@@ -58,7 +57,7 @@ const handler = async (ctx, category) => {
 };
 
 export const route: Route = {
-    path: '/06se/:category?',
+    path: '/:category?',
     name: '06se',
     example: '/06se/xiuren',
     maintainers: ['your-name'],
@@ -70,7 +69,7 @@ export const route: Route = {
     radar: [
         {
             source: ['06se.com/:category'],
-            target: '/06se/:category',
+            target: '/:category',
         },
     ],
     handler: async (ctx) => {
