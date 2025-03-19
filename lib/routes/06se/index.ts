@@ -20,9 +20,22 @@ const handler = async (ctx, category) => {
                 const date = $item.find('.item-meta item').attr('title') || $item.find('.item-meta item').text().trim();
 
                 const description = await cache.tryGet(link, async () => {
-                    const { data: detailResponse } = await got(link);
-                    const $detail = load(detailResponse);
-                    return `<p>${title}</p>${$detail('.content').html()}`;
+                    const detailResponse = await got(link);
+                    const $detail = load(detailResponse.body);
+
+                    // 获取所有图片并改造
+                    const images = $detail('.article-content img').map((_, img) => {
+                        const $img = $(img);
+                        const src = $img.attr('data-src');
+                        if (src && src.includes('url=')) {
+                            const realSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
+                            console.log('Image real src:', realSrc);
+                            return `<img src="${realSrc}" />`;
+                        }
+                        return '';
+                    }).get().filter(Boolean).join('');
+
+                    return `<p>${title}</p>${images}`;
                 });
 
                 return {
