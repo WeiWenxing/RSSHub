@@ -57,7 +57,7 @@ const handler = async (ctx, page) => {
 };
 
 export const route: Route = {
-    path: '/xiuren/:page(\\d{1,3})',
+    path: '/xiuren/:page?',
     name: '06se - 秀人网分页',
     example: '/06se/xiuren/2',
     maintainers: ['your-name'],
