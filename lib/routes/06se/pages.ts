@@ -10,7 +10,8 @@ const fetchPageItems = async (category, page) => {
     const { data: response } = await got(`${baseUrl}/${category}/page/${page}`);
     const $ = load(response);
 
-    return $('.posts-row.ajaxpager .posts-item')
+    const items = await Promise.all(
+        $('.posts-row.ajaxpager .posts-item')
         .map(async (_, item) => {
             const $item = $(item);
             const link = $item.find('.item-heading a').attr('href');
@@ -43,7 +44,10 @@ const fetchPageItems = async (category, page) => {
                 guid: link,
             };
         })
-        .get();
+        .get()
+    );
+    console.log(`Items first item pubDate: ${items[0].pubDate}`);
+    return items;
 };
 
 const handler = async (ctx) => {
