@@ -27,11 +27,11 @@ const handler = async (ctx, page) => {
                     const images = $detail('.article-content img').map((_, img) => {
                         const $img = $(img);
                         const src = $img.attr('data-src');
+                        let imgSrc = src;
                         if (src && src.includes('url=')) {
-                            const realSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
-                            return `<img src="${realSrc}" />`;
+                            imgSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
                         }
-                        return '';
+                        return `<img src="${imgSrc}" />`;
                     }).get().filter(Boolean).join('');
 
                     return `<p>${title}</p>${images}`;
