@@ -30,7 +30,6 @@ async function fetchGameDetail(baseUrl: string, $item: cheerio.Cheerio, index: n
     const description = $detail('.game-description p').text().trim();
     const frameLink = $detail('.textarea-autogrow textarea').text().trim();
 
-    // 从当前时间开始递减，每个游戏间隔1分钟
     const timestamp = currentTime - index * 60 * 1000;
 
     return {
@@ -75,11 +74,11 @@ async function handler() {
     const response = await got(`${baseUrl}/All-Games`);
     const $ = load(response.data);
 
-    // 获取缓存的历史数据
-    let historicalItems: GameItem[] = await cache.get(CACHE_KEY) || [];
-    const historicalUrls = new Set(historicalItems.map(item => item.link));
+    // 获取缓存的历史数据并确保它是数组
+    const cachedData = await cache.get(CACHE_KEY);
+    let historicalItems: GameItem[] = Array.isArray(cachedData) ? cachedData : [];
 
-    // 使用当前时间作为基准
+    const historicalUrls = new Set(historicalItems.map(item => item.link));
     const currentTime = new Date().getTime();
 
     // 获取当前页面所有游戏
@@ -118,6 +117,7 @@ async function handler() {
         item: historicalItems,
     };
 }
+
 
 
 
