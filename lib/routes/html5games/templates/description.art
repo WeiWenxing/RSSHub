@@ -1,0 +1,4 @@
+<img src="{{ image }}" />
+<p>{{ description }}</p>
+<h3>Game Link:</h3>
+<p><a href="{{ frameLink }}">{{ frameLink }}</a></p>
