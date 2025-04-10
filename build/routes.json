@@ -45587,7 +45587,7 @@
         "categories": [
           "game"
         ],
-        "example": "/html5game/all",
+        "example": "/html5games/all",
         "parameters": {},
         "features": {
           "requireConfig": false,
