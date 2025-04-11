@@ -6,6 +6,7 @@ import { art } from '@/utils/render';
 import path from 'node:path';
 import { getCurrentPath } from '@/utils/helpers';
 import cache from '@/utils/cache';
+import logger from '@/utils/logger';
 
 const __dirname = getCurrentPath(import.meta.url);
 
@@ -28,7 +29,20 @@ async function fetchGameDetail(baseUrl: string, $item: cheerio.Cheerio, index: n
     const detailResponse = await got(itemLink);
     const $detail = load(detailResponse.data);
     const description = $detail('.game-description p').text().trim();
-    const frameLink = $detail('.textarea-autogrow textarea').text().trim();
+    let frameLink = $detail('.textarea-autogrow textarea').text().trim();
+
+    // 获取 frameLink 的最终重定向链接
+    try {
+        const response = await got(frameLink, {
+            followRedirect: true,
+            throwHttpErrors: false,
+            method: 'HEAD'  // 只获取头信息，不下载内容，更快
+        });
+        frameLink = response.url;
+    } catch (error) {
+        // 如果获取失败，保持原始链接
+        logger.error(`Failed to get final URL for ${frameLink}: ${error.message}`);
+    }
 
     const timestamp = currentTime - index * 60 * 1000;
 
@@ -117,7 +131,4 @@ async function handler() {
         item: historicalItems,
     };
 }
-
-
-
 
