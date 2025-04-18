@@ -3,6 +3,7 @@ import got from '@/utils/got';
 import { parseDate } from '@/utils/parse-date';
 import cache from '@/utils/cache';
 import { load } from 'cheerio';
+import { logger } from '@/utils/logger';
 
 const baseUrl = 'https://www.06se.com';
 
@@ -11,7 +12,7 @@ const handler = async (ctx, page) => {
     console.log(`url: ${baseUrl}/xiuren/page/${page}`);
     const $ = load(response);
 
-    const items = await Promise.all(
+    const items = (await Promise.all(
         $('.posts-row.ajaxpager .posts-item')
             .map(async (_, item) => {
                 const $item = $(item);
@@ -19,34 +20,42 @@ const handler = async (ctx, page) => {
                 const title = $item.find('.item-heading a').text().trim();
                 const date = $item.find('.item-meta item').attr('title') || $item.find('.item-meta item').text().trim();
 
-                const description = await cache.tryGet(link, async () => {
-                    const detailResponse = await got(link);
-                    const $detail = load(detailResponse.body);
+                let description;
+                try {
+                    description = await cache.tryGet(link, async () => {
+                        const detailResponse = await got(link);
+                        const $detail = load(detailResponse.body);
 
-                    // 获取所有图片并改造
-                    const images = $detail('.article-content img').map((_, img) => {
-                        const $img = $(img);
-                        const src = $img.attr('data-src');
-                        let imgSrc = src;
-                        if (src && src.includes('url=')) {
-                            imgSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
-                        }
-                        return `<img src="${imgSrc}" />`;
-                    }).get().filter(Boolean).join('');
+                        // 获取所有图片并改造
+                        const images = $detail('.article-content img').map((_, img) => {
+                            const $img = $(img);
+                            const src = $img.attr('data-src');
+                            let imgSrc = src;
+                            if (src && src.includes('url=')) {
+                                imgSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
+                            }
+                            return `<img src="${imgSrc}" />`;
+                        }).get().filter(Boolean).join('');
 
-                    return `<p>${title}</p>${images}`;
-                });
+                        return `<p>${title}</p>${images}`;
+                    });
 
-                return {
-                    title,
-                    link,
-                    description,
-                    pubDate: parseDate(date),
-                    guid: link,
-                };
+                    // 如果成功获取描述，返回完整的 item
+                    return {
+                        title,
+                        link,
+                        description,
+                        pubDate: parseDate(date),
+                        guid: link,
+                    };
+                } catch (err) {
+                    // 如果获取失败，返回 null，后续会被过滤掉
+                    logger.error(`Error getting description for ${link}: ${err.message}`);
+                    return null;
+                }
             })
             .get()
-    );
+    )).filter(Boolean); // 过滤掉 null 的项
 
     return {
         title: `06se - 秀人网 第 ${page} 页`,
@@ -78,3 +87,5 @@ export const route: Route = {
     },
     description: `秀人网分页，支持第 2 页到第 100 页`,
 };
+
+
