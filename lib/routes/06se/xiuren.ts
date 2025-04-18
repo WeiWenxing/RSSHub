@@ -31,8 +31,19 @@ const handler = async (ctx, page) => {
                             const $img = $(img);
                             const src = $img.attr('data-src');
                             let imgSrc = src;
+                            // 处理 url= 参数的情况
                             if (src && src.includes('url=')) {
                                 imgSrc = src.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || src;
+                            }
+                            // 处理直接在 src 属性中的情况
+                            else if (!src) {
+                                // 如果 data-src 为空，尝试获取普通的 src 属性
+                                imgSrc = $img.attr('src');
+                            }
+
+                            // 确保 imgSrc 有值
+                            if (!imgSrc) {
+                                return '';
                             }
                             return `<img src="${imgSrc}" />`;
                         }).get().filter(Boolean).join('');
@@ -87,5 +98,6 @@ export const route: Route = {
     },
     description: `秀人网分页，支持第 2 页到第 100 页`,
 };
+
 
 
