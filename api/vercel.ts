@@ -7,17 +7,18 @@ const __dirname = dirname(__filename);
 
 moduleAlias.addAlias('@', join(__dirname, '../lib'));
 
-import { setConfig } from '../lib/config';
+import { setConfig } from '../lib/config.js';
 setConfig({
     NO_LOGFILES: true,
 });
 
 import { handle } from 'hono/vercel';
-import app from '../lib/app';
-import logger from '../lib/utils/logger';
+import app from '../lib/app.js';
+import logger from '../lib/utils/logger.js';
 
 logger.info(`🎉 RSSHub is running! Cheers!`);
 logger.info('💖 Can you help keep this open source project alive? Please sponsor 👉 https://docs.rsshub.app/sponsor');
 
 export default handle(app);
+
 
