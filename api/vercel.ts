@@ -1,17 +1,23 @@
-const path = require('path');
-const moduleAlias = require('module-alias');
-moduleAlias.addAlias('@', path.join(__dirname, '../lib'));
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import moduleAlias from 'module-alias';
 
-const { setConfig } = require('../lib/config');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+moduleAlias.addAlias('@', join(__dirname, '../lib'));
+
+import { setConfig } from '../lib/config';
 setConfig({
     NO_LOGFILES: true,
 });
 
-const { handle } = require('hono/vercel');
-const app = require('../lib/app');
-const logger = require('../lib/utils/logger');
+import { handle } from 'hono/vercel';
+import app from '../lib/app';
+import logger from '../lib/utils/logger';
 
 logger.info(`🎉 RSSHub is running! Cheers!`);
 logger.info('💖 Can you help keep this open source project alive? Please sponsor 👉 https://docs.rsshub.app/sponsor');
 
-module.exports = handle(app);
+export default handle(app);
+
