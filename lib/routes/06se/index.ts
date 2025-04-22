@@ -35,7 +35,12 @@ const handler = async (ctx, category) => {
                         // 处理直接在 src 属性中的情况
                         else if (!src) {
                             // 如果 data-src 为空，尝试获取普通的 src 属性
-                            imgSrc = $img.attr('src');
+                            const normalSrc = $img.attr('src');
+                            if (normalSrc && normalSrc.includes('url=')) {
+                                imgSrc = normalSrc.match(/url=([^&]+)/g)?.pop()?.replace('url=', '') || normalSrc;
+                            } else {
+                                imgSrc = normalSrc;
+                            }
                         }
 
                         // 确保 imgSrc 有值
@@ -91,3 +96,4 @@ export const route: Route = {
 |--------|----------|---------|
 | xiuren | other    | cos     |`,
 };
+
