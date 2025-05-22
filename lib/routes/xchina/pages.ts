@@ -148,6 +148,18 @@ const handler = async (ctx) => {
         }
     }
 
+    // Manually add a test item for debugging purposes
+    const debugItem = {
+        title: 'Hardcoded Debug Item - XChina Pages',
+        link: `${baseUrl}/xchina/debug_item_link`,
+        description: 'This is a hardcoded item added for debugging the pages.ts handler output.',
+        pubDate: new Date().toUTCString(),
+        guid: `${baseUrl}/xchina/debug_item_link/${Date.now()}`,
+    };
+    allItems.push(debugItem);
+    console.log(`[XChina Pages Handler] Manually added a debug item. allItems.length is now: ${allItems.length}`);
+
+
     let feedLink = '';
     if (category === 'xiuren') {
         feedLink = `${baseUrl}/photos/${XIUREN_SERIES_ID}/${startPage}.html`;
