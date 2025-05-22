@@ -40,9 +40,9 @@ const fetchPageItems = async (category, page) => {
     const $ = load(listPageHtml);
     console.log(`[Xiurenwang Pages] Loaded list page HTML for ${pageUrl}. Content (first 500 chars): ${String(listPageHtml).substring(0, 500)}...`);
 
-    // 使用用户提供的 HTML 结构更新选择器
-    const itemElements = $('div.paragraph');
-    console.log(`[Xiurenwang Pages] Found ${itemElements.length} item elements with selector 'div.paragraph' on page ${pageUrl}.`);
+    // 使用用户提供的 HTML 结构更新选择器，只选取 div.left 下的 div.paragraph
+    const itemElements = $('div.left div.paragraph');
+    console.log(`[Xiurenwang Pages] Found ${itemElements.length} item elements with selector 'div.left div.paragraph' on page ${pageUrl}.`);
 
     // 恢复简单的 Promise.all，因为不再有耗时的详情页网络请求
     const items = await Promise.all(
