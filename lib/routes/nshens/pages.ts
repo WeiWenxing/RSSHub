@@ -89,7 +89,8 @@ const fetchPageItems = async (category, page) => {
             }
         }
 
-        const countMatch = title.match(/\((\d+)P\)/i);
+        // Corrected regex for imageCount: matches "XXP" at the end of the string or followed by non-digits
+        const countMatch = title.match(/(\d+)P(?:[^0-9]|$)/i);
         let imageCount = 0;
         if (countMatch && countMatch[1]) {
             imageCount = parseInt(countMatch[1], 10);
