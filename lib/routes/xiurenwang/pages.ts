@@ -44,91 +44,77 @@ const fetchPageItems = async (category, page) => {
     const itemElements = $('div.left div.paragraph');
     console.log(`[Xiurenwang Pages] Found ${itemElements.length} item elements with selector 'div.left div.paragraph' on page ${pageUrl}.`);
 
-    const concurrencyLimit = 1; // 设置并发数量
-    const batchDelay = 3000;    // 设置批次之间的延迟 (毫秒)
-    const allItemsPromises: Promise<any>[] = itemElements.get().map(async (element, i) => { // .get() to convert Cheerio collection to array for map
+    const processedItems: any[] = [];
+    const itemDetailFetchDelay = 3000; // 3秒延迟
+
+    let itemCounter = 0;
+    for (const element of itemElements.get()) {
+        itemCounter++;
         const $item = $(element);
-        console.log(`[Xiurenwang Pages] Preparing item ${i + 1}/${itemElements.length}`);
+        console.log(`[Xiurenwang Pages] Processing item ${itemCounter}/${itemElements.length} (serially)`);
 
         // 从 "全套预览" 按钮获取详情页链接
-            const detailPageLinkHref = $item.find('div.link > a.button:contains("全套预览")').attr('href');
-            const relativeLink: string | undefined = typeof detailPageLinkHref === 'string' ? detailPageLinkHref : undefined;
+        const detailPageLinkHref = $item.find('div.link > a.button:contains("全套预览")').attr('href');
+        const relativeLink: string | undefined = typeof detailPageLinkHref === 'string' ? detailPageLinkHref : undefined;
 
-            const itemUrl = relativeLink ? `${baseUrl}${relativeLink}` : ''; // 启用 itemUrl
-            console.log(`[Xiurenwang Pages] Item ${i + 1}: relativeLink='${relativeLink}', itemUrl='${itemUrl}'`);
+        const itemUrl = relativeLink ? `${baseUrl}${relativeLink}` : ''; // 启用 itemUrl
+        console.log(`[Xiurenwang Pages] Item ${itemCounter}: relativeLink='${relativeLink}', itemUrl='${itemUrl}'`);
 
-            const title = $item.find('div.title > a').text().trim();
-            console.log(`[Xiurenwang Pages] Item ${i + 1}: title='${title}'`);
+        const title = $item.find('div.title > a').text().trim();
+        console.log(`[Xiurenwang Pages] Item ${itemCounter}: title='${title}'`);
 
-            const dateText = $item.find('div.volDate').text().trim();
-            const dateMatch = dateText.match(/\d{4}-\d{2}-\d{2}/);
-            const date = dateMatch ? dateMatch[0] : '';
-            console.log(`[Xiurenwang Pages] Item ${i + 1}: dateText='${dateText}', extractedDate='${date}'`);
+        const dateText = $item.find('div.volDate').text().trim();
+        const dateMatch = dateText.match(/\d{4}-\d{2}-\d{2}/);
+        const date = dateMatch ? dateMatch[0] : '';
+        console.log(`[Xiurenwang Pages] Item ${itemCounter}: dateText='${dateText}', extractedDate='${date}'`);
 
-            // 构建列表页的初步描述 (主要用于无详情页或详情页抓取失败时)
-            let initialDescription = `<p>${title}</p>`;
-            $item.find('div.intro > img').each((_, imgElem) => {
-                const imgSrc = $(imgElem).attr('src');
-                if (imgSrc) {
-                    initialDescription += `<img src="${imgSrc}" alt="${title}"><br>`;
-                }
-            });
-
-            let itemDescription: string | undefined;
-            if (itemUrl) {
-                console.log(`[Xiurenwang Pages] Item ${i + 1}: Attempting cache.tryGet for itemUrl='${itemUrl}'`);
-                itemDescription = await cache.tryGet(itemUrl, async () => {
-                    console.log(`[Xiurenwang Pages] Item ${i + 1}: cache.tryGet callback for itemUrl='${itemUrl}'`);
-                    const detailResponse = await got(itemUrl, { headers });
-                    const $detail = load(detailResponse.data);
-
-                    let fetchedDescription = `<p>${title}</p>`; // Start with the title
-                    // Extract images from the detail page's div.intro
-                    $detail('div.intro > img').each((_, imgElem) => {
-                        const imgSrc = $detail(imgElem).attr('src');
-                        // Use the title from the list page as alt text for detail images as well
-                        const imgAlt = $detail(imgElem).attr('alt') || title;
-                        if (imgSrc) {
-                            fetchedDescription += `<img src="${imgSrc}" alt="${imgAlt}"><br>`;
-                        }
-                    });
-                    console.log(`[Xiurenwang Pages] Detail page ${itemUrl} fetched and parsed. Description length: ${fetchedDescription.length}`);
-                    return fetchedDescription;
-                });
-            } else {
-                console.log(`[Xiurenwang Pages] Item ${i + 1}: itemUrl is empty, using description from list page.`);
-                itemDescription = initialDescription;
+        // 构建列表页的初步描述 (主要用于无详情页或详情页抓取失败时)
+        let initialDescription = `<p>${title}</p>`;
+        $item.find('div.intro > img').each((_, imgElem) => {
+            const imgSrc = $(imgElem).attr('src');
+            if (imgSrc) {
+                initialDescription += `<img src="${imgSrc}" alt="${title}"><br>`;
             }
-            console.log(`[Xiurenwang Pages] Item ${i + 1}: final itemDescription length: ${itemDescription?.length}`);
+        });
 
-            const resultItem = {
-                title,
-                link: itemUrl, // 现在会是详情页链接
-                description: itemDescription,
-                pubDate: date ? parseDate(date) : undefined,
-                guid: itemUrl || `${baseUrl}/item/${category}/${title}/${date}`, // Fallback GUID if itemUrl is empty
-            };
-            console.log(`[Xiurenwang Pages] Item ${i + 1}: constructed item object:`, JSON.stringify(resultItem).substring(0, 200) + '...');
-            return resultItem;
-    });
+        let itemDescription: string | undefined;
+        if (itemUrl) {
+            console.log(`[Xiurenwang Pages] Item ${itemCounter}: Attempting cache.tryGet for itemUrl='${itemUrl}'`);
+            itemDescription = await cache.tryGet(itemUrl, async () => {
+                console.log(`[Xiurenwang Pages] Item ${itemCounter}: Cache miss for ${itemUrl}. Introducing ${itemDetailFetchDelay}ms delay before fetching.`);
+                await new Promise(resolve => setTimeout(resolve, itemDetailFetchDelay)); // 在网络请求前延迟
+                console.log(`[Xiurenwang Pages] Item ${itemCounter}: Fetching detail page ${itemUrl} after delay.`);
+                const detailResponse = await got(itemUrl, { headers });
+                const $detail = load(detailResponse.data);
 
-    const processedItems: any[] = []; // 指定类型为 any[]
-    for (let i = 0; i < allItemsPromises.length; i += concurrencyLimit) {
-        const batch = allItemsPromises.slice(i, i + concurrencyLimit);
-        console.log(`[Xiurenwang Pages] Processing batch from index ${i}, size ${batch.length}`);
-        try {
-            const batchResults = await Promise.all(batch);
-            processedItems.push(...batchResults);
-        } catch (error) {
-            console.error(`[Xiurenwang Pages] Error processing a batch (starting index ${i}):`, error);
-            // 可以选择是否将错误的部分结果也加入，或者跳过
+                let fetchedDescription = `<p>${title}</p>`; // Start with the title
+                // Extract images from the detail page's div.intro
+                $detail('div.intro > img').each((_, imgElem) => {
+                    const imgSrc = $detail(imgElem).attr('src');
+                    const imgAlt = $detail(imgElem).attr('alt') || title;
+                    if (imgSrc) {
+                        fetchedDescription += `<img src="${imgSrc}" alt="${imgAlt}"><br>`;
+                    }
+                });
+                console.log(`[Xiurenwang Pages] Detail page ${itemUrl} fetched and parsed. Description length: ${fetchedDescription.length}`);
+                return fetchedDescription;
+            });
+        } else {
+            console.log(`[Xiurenwang Pages] Item ${itemCounter}: itemUrl is empty, using description from list page.`);
+            itemDescription = initialDescription;
         }
+        console.log(`[Xiurenwang Pages] Item ${itemCounter}: final itemDescription length: ${itemDescription?.length}`);
 
-        if (i + concurrencyLimit < allItemsPromises.length) {
-            console.log(`[Xiurenwang Pages] Delaying ${batchDelay}ms before next batch.`);
-            await new Promise(resolve => setTimeout(resolve, batchDelay));
-        }
-    }
+        const resultItem = {
+            title,
+            link: itemUrl, // 现在会是详情页链接
+            description: itemDescription,
+            pubDate: date ? parseDate(date) : undefined,
+            guid: itemUrl || `${baseUrl}/item/${category}/${title}/${date}`, // Fallback GUID if itemUrl is empty
+        };
+        console.log(`[Xiurenwang Pages] Item ${itemCounter}: constructed item object:`, JSON.stringify(resultItem).substring(0, 200) + '...');
+        processedItems.push(resultItem);
+    } // 结束 for...of 循环
 
     console.log(`[Xiurenwang Pages] fetchPageItems for ${pageUrl} finished. Total items generated: ${processedItems.length}. First item (if any): ${processedItems.length > 0 ? JSON.stringify(processedItems[0]).substring(0, 100) + '...' : 'N/A'}`);
     return processedItems;
@@ -170,12 +156,18 @@ const handler = async (ctx) => {
 
     const allItems: any[] = []; // 指定类型为 any[] 以解决 TS 错误
     console.log('[Xiurenwang Pages Handler] Initialized allItems. Starting page loop.');
+    const pageProcessDelay = 3000; // 3秒延迟
     for (let page = startPage; page <= endPage; page++) {
         try {
+            console.log(`[Xiurenwang Pages Handler] Processing page ${page}.`);
             const items = await fetchPageItems(category, page);
             allItems.push(...items);
+            if (page < endPage) { // 如果不是最后一页，则在处理下一页前延迟
+                console.log(`[Xiurenwang Pages Handler] Delaying ${pageProcessDelay}ms before fetching next list page.`);
+                await new Promise(resolve => setTimeout(resolve, pageProcessDelay));
+            }
         } catch (error) {
-            console.error(`[Xiurenwang Pages] Error fetching page ${page} for category ${category}:`, error);
+            console.error(`[Xiurenwang Pages] Error fetching/processing page ${page} for category ${category}:`, error);
             // 根据需求，可以选择继续下一页或停止
         }
     }
