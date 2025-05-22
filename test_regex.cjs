@@ -31,7 +31,8 @@ if (nuxtScriptMatch && nuxtScriptMatch[1]) {
         if (nuxtData && nuxtData.data && Array.isArray(nuxtData.data) && nuxtData.data[0] && nuxtData.data[0].postList) {
             const posts = nuxtData.data[0].postList;
             console.log(`\n--- SUCCESS: Extracted ${posts.length} posts using vm module ---`);
-            // console.log("First post:", JSON.stringify(posts[0], null, 2));
+            console.log("\n--- Extracted Posts Data: ---");
+            console.log(JSON.stringify(posts, null, 2)); // Print all extracted posts
         } else {
             console.error("\n--- ERROR: postList not found in executed nuxtData object ---");
             if (nuxtData && nuxtData.data && Array.isArray(nuxtData.data)) {
