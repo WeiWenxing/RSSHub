@@ -88,9 +88,17 @@ const fetchPageItems = async (category, page) => {
 
 const handler = async (ctx) => {
     const category = ctx.req.param('category') || 'default-category'; // TODO: 修改默认分类 (如果需要), e.g. 'photos'
-    const pageRange = ctx.req.param('pageRange');
-    if (!pageRange || !/^\d+-\d+$/.test(pageRange)) {
-        throw new Error('Invalid page range format. Expected format: start-end (e.g., 1-5)');
+    const pageRangeParam = ctx.req.param('pageRange');
+
+    if (!pageRangeParam) {
+        // console.error("Page range parameter is missing from ctx.req.param:", ctx.req.param()); // For debugging if possible
+        throw new Error('Page range parameter is missing.');
+    }
+    const pageRange = pageRangeParam.trim(); // Trim whitespace
+
+    if (!/^\d+-\d+$/.test(pageRange)) {
+        // console.error(`Invalid page range format: '${pageRange}' (original: '${pageRangeParam}')`); // For debugging
+        throw new Error(`Invalid page range format. Expected format: start-end (e.g., 1-5). Received: '${pageRange}'`);
     }
     const [startPage, endPage] = pageRange.split('-').map(Number);
 
@@ -127,7 +135,7 @@ const handler = async (ctx) => {
 };
 
 export const route: Route = {
-    path: '/:category?/page/:pageRange(\\d+-\\d+)', // 添加 pageRange 格式校验
+    path: '/:category/page/:pageRange', // category 设为必需参数
     name: 'XChina - 分类分页范围', // 修改 name
     example: '/xchina/some-category/page/2-10, /xchina/xiuren/page/1-3', // 修改 example
     maintainers: ['your-name'], // 修改 maintainers
