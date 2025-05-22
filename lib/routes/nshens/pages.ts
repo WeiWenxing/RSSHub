@@ -37,112 +37,138 @@ const fetchPageItems = async (category, page) => {
         console.error(`[Nshens Pages] Failed to load list page HTML for ${pageUrl} or HTML is not a string. Received:`, listPageHtml);
         return []; // Return empty array if HTML is not valid
     }
-    const $ = load(listPageHtml);
-    // 打印完整的 listPageHtml 长度和内容供用户分析
-    console.log(`[Nshens Pages] Loaded list page HTML for ${pageUrl}. Length: ${listPageHtml.length}`);
-    console.log(`[Nshens Pages] Full HTML content for ${pageUrl}:\n${listPageHtml}`);
+    // 提取 window.__NUXT__ 数据
+    let posts = [];
+    try {
+        // Regex to capture the object returned by the IIFE in window.__NUXT__
+        // This looks for `return {` and captures everything until the matching `}` of that return object,
+        // right before the IIFE arguments `}(`
+        const nuxtReturnObjectMatch = listPageHtml.match(/window\.__NUXT__\s*=\s*\(function\s*\(.*?\)\s*\{[\s\S]*?return\s*(\{[\s\S]*?\})\s*\}\)\s*\(.*?\)\s*;/s);
+
+        if (nuxtReturnObjectMatch && nuxtReturnObjectMatch[1]) {
+            let returnedObjectString = nuxtReturnObjectMatch[1];
+            console.log('[Nshens Pages] Extracted NUXT IIFE return object string (first 1000 chars):', returnedObjectString.substring(0, 1000) + (returnedObjectString.length > 1000 ? '...' : ''));
+
+            // The extracted string is a JavaScript object literal, not strict JSON.
+            // It contains variable placeholders like 'a', 'b', 'h', 'k' etc.
+            // We need to get the arguments passed to the IIFE to replace these.
+            const iifeArgsMatch = listPageHtml.match(/window\.__NUXT__\s*=\s*\(function\s*\(([^)]*?)\)\s*\{[\s\S]*?return\s*\{[\s\S]*?\}\s*\}\)\s*\(([^;]*?)\)\s*;/s);
+
+            if (iifeArgsMatch && iifeArgsMatch[1] && iifeArgsMatch[2]) {
+                const paramNames = iifeArgsMatch[1].split(',').map(p => p.trim());
+                // Arguments are tricky because they can be strings, numbers, or 'void 0' (for undefined)
+                // This crude regex tries to split them. A proper parser would be better.
+                const argValuesRaw = iifeArgsMatch[2].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); // Split by comma, respecting quotes
+
+                if (paramNames.length === argValuesRaw.length) {
+                    for (let i = 0; i < paramNames.length; i++) {
+                        const paramName = paramNames[i];
+                        let argValue = argValuesRaw[i].trim();
+
+                        // If argValue is a string literal like "Xiuren", keep quotes for JSON.
+                        // If it's a variable like 'k' which means null/undefined from the IIFE, replace with 'null'.
+                        // If it's a number, it's fine.
+                        // This is still very heuristic.
+                        if (argValue === 'void 0' || argValue === 'null' || argValue === 'undefined') {
+                             returnedObjectString = returnedObjectString.replace(new RegExp(`(?<=[,:{\\[\\s])${paramName}(?=,|:|}|}|\\s)`, 'g'), 'null');
+                        } else if (!argValue.startsWith('"') && !/^\d+$/.test(argValue) && argValue !== 'false' && argValue !== 'true') {
+                            // It's a placeholder that should have been a string from the args, but wasn't quoted in the return {}
+                            // This case is complex. The example shows 'a' for "Xiuren".
+                            // The example data string you provided: [{title:a,name:a,...}]
+                            // 'a' is the first argument "Xiuren".
+                            // We need to replace 'title:a' with 'title:"Xiuren"'
+                             returnedObjectString = returnedObjectString.replace(new RegExp(`(?<=[,:{\\[\\s])${paramName}(?=,|:|}|}|\\s)`, 'g'), argValue);
+                        }
+                        // else if (argValue.startsWith('"')) {
+                        //    returnedObjectString = returnedObjectString.replace(new RegExp(paramName, 'g'), argValue);
+                        // }
+                        // else { // numbers, true, false
+                        //    returnedObjectString = returnedObjectString.replace(new RegExp(paramName, 'g'), argValue);
+                        // }
+                    }
+                     // Now, make property names be quoted for JSON
+                    returnedObjectString = returnedObjectString.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+                    console.log('[Nshens Pages] Attempting to parse NUXT data string after replacements. Length:', returnedObjectString.length);
+                    console.log('[Nshens Pages] Modified object string (first 1000):', returnedObjectString.substring(0,1000) + "...");
 
 
-    // nshens.com - 更新列表项选择器，直接使用 div.col
-    const itemElements = $('div.col'); 
-    console.log(`[Nshens Pages] Found ${itemElements.length} item elements with selector 'div.col' on page ${pageUrl}.`);
+                    const nuxtData = JSON.parse(returnedObjectString.replace(/\\u002F/g, '/'));
+                    if (nuxtData && nuxtData.data && nuxtData.data[0] && nuxtData.data[0].postList) {
+                        posts = nuxtData.data[0].postList;
+                        console.log(`[Nshens Pages] Successfully extracted ${posts.length} posts from window.__NUXT__.`);
+                    } else {
+                        console.error('[Nshens Pages] Failed to find postList in parsed window.__NUXT__ (after replacements). Structure might be different.');
+                        console.log('[Nshens Pages] Parsed nuxtData.data[0]:', nuxtData && nuxtData.data && nuxtData.data[0]);
+                    }
+                } else {
+                    console.error('[Nshens Pages] IIFE param names and arg values count mismatch.');
+                }
+            } else {
+                 console.error('[Nshens Pages] Failed to extract IIFE arguments.');
+            }
+        } else {
+            console.warn('[Nshens Pages] window.__NUXT__ return object not found or regex mismatch.');
+        }
+    } catch (e) {
+        console.error('[Nshens Pages] Error processing window.__NUXT__ data:', e);
+    }
+
+    if (!posts || posts.length === 0) {
+        console.log('[Nshens Pages] No posts extracted from NUXT data. Returning empty.');
+        return [];
+    }
 
     const processedItems: any[] = [];
-    const itemDetailFetchDelay = 3000; // 3秒延迟
-
     let itemCounter = 0;
-    for (const element of itemElements.get()) {
+    for (const p of posts) { // Changed post to p to avoid conflict if post was a global
+        const post = p as any; // Type assertion to any to resolve TS errors
         itemCounter++;
-        const $item = $(element);
-        console.log(`[Nshens Pages] Processing item ${itemCounter}/${itemElements.length} (serially)`);
+        const title = post.title;
+        // 构造 itemUrl: baseUrl + /web/ + y + / + m + / + d + / + slug
+        const itemUrl = `${baseUrl}/web/${post.y}/${post.m}/${post.d}/${post.slug}`;
+        const postDate = post.date; // Already in YYYY-MM-DD HH:MM:SS format
 
-        // nshens.com - 更新详情页链接提取
-        const detailPageLinkHref = $item.find('a').attr('href');
-        const relativeLink: string | undefined = typeof detailPageLinkHref === 'string' ? detailPageLinkHref : undefined;
-
-        let itemUrl = '';
-        if (relativeLink) {
-            if (relativeLink.startsWith('http')) {
-                itemUrl = relativeLink;
-            } else {
-                // nshens.com 详情页链接已经是相对根路径的 /web/...
-                itemUrl = `${baseUrl}${relativeLink}`;
-            }
-        }
-        console.log(`[Nshens Pages] Item ${itemCounter}: relativeLink='${relativeLink}', itemUrl='${itemUrl}'`);
-
-        // nshens.com - 更新标题提取
-        const title = $item.find('a > div > div:last-child > div').text().trim();
-        console.log(`[Nshens Pages] Item ${itemCounter}: title='${title}'`);
-
-        // nshens.com - 从 itemUrl 提取日期
-        let date = '';
-        if (itemUrl) {
-            const datePathMatch = itemUrl.match(/\/web\/(\d{4})\/(\d{2})\/(\d{2})\//);
-            if (datePathMatch && datePathMatch[1] && datePathMatch[2] && datePathMatch[3]) {
-                date = `${datePathMatch[1]}-${datePathMatch[2]}-${datePathMatch[3]}`;
-            }
-        }
-        console.log(`[Nshens Pages] Item ${itemCounter}: extractedDate='${date}' from itemUrl.`);
-
-        // nshens.com - 更新列表图片提取 (从 background-image)
         let itemDescription = `<p>${title}</p>`;
-        const bgImageDiv = $item.find('div.v-image__image--cover');
-        const bgImageStyle = bgImageDiv.attr('style');
+        const thumbnailUrl = post.img; // This is the thumbnail/cover image
         let baseImageUrl = '';
-        let thumbnailUrl = ''; // Declare thumbnailUrl here
 
-        if (bgImageStyle) {
-            const urlMatch = bgImageStyle.match(/url\("(.*?thumbnail\.jpg)"\)/); // 确保匹配到 thumbnail.jpg
-            if (urlMatch && urlMatch[1]) {
-                thumbnailUrl = urlMatch[1]; // Assign value here
-                itemDescription += `<img src="${thumbnailUrl}" alt="${title} (Thumbnail)"><br>`;
-                baseImageUrl = thumbnailUrl.substring(0, thumbnailUrl.lastIndexOf('/') + 1); // 获取目录路径
-            }
+        if (thumbnailUrl && thumbnailUrl.includes('thumbnail.jpg')) { // Or a more generic check if not always thumbnail.jpg
+            itemDescription += `<img src="${thumbnailUrl}" alt="${title} (Thumbnail)"><br>`;
+            baseImageUrl = thumbnailUrl.substring(0, thumbnailUrl.lastIndexOf('/') + 1);
+        } else if (thumbnailUrl) { // If not a thumbnail.jpg, still add it as the primary image
+            itemDescription += `<img src="${thumbnailUrl}" alt="${title}"><br>`;
+            // Attempt to derive baseImageUrl if it's a common pattern, otherwise this might be tricky
+            // For now, if not thumbnail.jpg, we might not be able to reliably get other images in sequence
+            // baseImageUrl = thumbnailUrl.substring(0, thumbnailUrl.lastIndexOf('/') + 1); // This might be incorrect if not thumbnail.jpg
         }
 
-        // 从标题中提取图片数量，例如 (85P)
+
         const countMatch = title.match(/\((\d+)P\)/i);
         let imageCount = 0;
         if (countMatch && countMatch[1]) {
             imageCount = parseInt(countMatch[1], 10);
         }
-        console.log(`[Nshens Pages] Item ${itemCounter}: Detected image count: ${imageCount} from title.`);
 
         if (baseImageUrl && imageCount > 0) {
-            // 如果缩略图不是第一张，并且我们想从001.jpg开始，可能需要调整这里的逻辑
-            // 这里假设我们直接从1开始生成到imageCount
             for (let k = 1; k <= imageCount; k++) {
-                // nshens.com - 图片命名是 1.jpg, 2.jpg ...
                 const imageName = k + '.jpg';
-                // 如果实际图片名不是补零的，或者不是.jpg，需要调整这里
-                // 例如，如果缩略图是 snapshot_1.jpg, 那么其他可能是 snapshot_2.jpg ...
-                // 这个需要根据实际情况调整，当前假设是 001.jpg 格式
-                if (baseImageUrl + imageName !== thumbnailUrl) { // 避免重复添加缩略图（如果它也是数字命名的）
-                     itemDescription += `<img src="${baseImageUrl}${imageName}" alt="${title} - Image ${k}"><br>`;
+                if (baseImageUrl + imageName !== thumbnailUrl) {
+                    itemDescription += `<img src="${baseImageUrl}${imageName}" alt="${title} - Image ${k}"><br>`;
                 }
             }
-        } else if (!baseImageUrl && imageCount === 0) { // 如果没有背景图且标题没数量，保留最初的标题
-             // itemDescription 已经是 <p>${title}</p>
         }
-
-
-        // 不再访问 itemUrl 获取详情
-        // if (itemUrl) { ... } else { ... }
-        console.log(`[Nshens Pages] Item ${itemCounter}: final itemDescription length: ${itemDescription.length} (generated from list page info)`);
 
         const resultItem = {
             title,
             link: itemUrl,
             description: itemDescription,
-            pubDate: date ? parseDate(date) : undefined,
-            guid: itemUrl || `${baseUrl}/item/${category}/${title}/${date}`, // Fallback GUID
+            pubDate: postDate ? parseDate(postDate) : undefined,
+            guid: itemUrl || `${baseUrl}/item/${category}/${title}/${postDate}`, // Use postDate for GUID
         };
-        console.log(`[Nshens Pages] Item ${itemCounter}: constructed item object:`, JSON.stringify(resultItem).substring(0, 200) + '...');
         processedItems.push(resultItem);
     }
 
-    console.log(`[Nshens Pages] fetchPageItems for ${pageUrl} finished. Total items generated: ${processedItems.length}. First item (if any): ${processedItems.length > 0 ? JSON.stringify(processedItems[0]).substring(0, 100) + '...' : 'N/A'}`);
+    console.log(`[Nshens Pages] fetchPageItems for ${pageUrl} finished. Total items generated: ${processedItems.length}.`);
     return processedItems;
 };
 
