@@ -23,7 +23,14 @@ const fetchPageItems = async (category, page) => {
 
     const headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
-        Referer: category === 'xiuren' ? `${baseUrl}/photos/${XIUREN_SERIES_ID}/` : baseUrl,
+        Referer: baseUrl,
+        // 尝试添加以下常见的浏览器头部：
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6', // 根据您的地区调整
+        'Accept-Encoding': 'gzip, deflate, br', // got 通常会自动处理解压
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cookie': 'pv_punch_pc=%7B%22count%22%3A29%2C%22expiry%22%3A1747919290%7D'
     };
     console.log(`[XChina Pages] Attempting to fetch URL: ${pageUrl} with headers:`, JSON.stringify(headers));
 
