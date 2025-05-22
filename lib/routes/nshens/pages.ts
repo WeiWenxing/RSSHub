@@ -104,10 +104,17 @@ const fetchPageItems = async (category, page) => {
                     console.error('[Nshens Pages] IIFE param names and arg values count mismatch.');
                 }
             } else {
-                 console.error('[Nshens Pages] Failed to extract IIFE arguments.');
+                 console.error('[Nshens Pages] Failed to extract IIFE arguments from regex match.');
             }
         } else {
-            console.warn('[Nshens Pages] window.__NUXT__ return object not found or regex mismatch.');
+            console.warn('[Nshens Pages] Primary regex for NUXT IIFE return object did not match.');
+            // Fallback: Try to capture the entire assignment to window.__NUXT__ for debugging
+            const fullNuxtScriptMatch = listPageHtml.match(/<script>\s*window\.__NUXT__\s*=\s*([\s\S]*?)\s*;?\s*<\/script>/s);
+            if (fullNuxtScriptMatch && fullNuxtScriptMatch[1]) {
+                console.log('[Nshens Pages] Fallback: Captured full window.__NUXT__ assignment (first 2000 chars):', fullNuxtScriptMatch[1].substring(0, 2000) + (fullNuxtScriptMatch[1].length > 2000 ? '...' : ''));
+            } else {
+                console.warn('[Nshens Pages] Fallback: Could not even capture the full window.__NUXT__ script content.');
+            }
         }
     } catch (e) {
         console.error('[Nshens Pages] Error processing window.__NUXT__ data:', e);
