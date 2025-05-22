@@ -157,7 +157,7 @@ const handler = async (ctx) => {
 };
 
 export const route: Route = {
-    path: '/:category/page/:pageRange', // category 设为必需参数
+    path: '/:category/:pageRange', // category 设为必需参数
     name: 'XChina - 分类分页范围', // 修改 name
     example: '/xchina/some-category/page/2-10, /xchina/xiuren/page/1-3', // 修改 example
     maintainers: ['your-name'], // 修改 maintainers
@@ -173,7 +173,7 @@ export const route: Route = {
             target: (_params, url) => {
                 const page = new URL(url).pathname.match(/\/(\d+)\.html$/)?.[1];
                 if (page) {
-                    return `/xchina/xiuren/page/${page}-${page}`;
+                    return `/xchina/xiuren/${page}-${page}`;
                 }
             },
         },
@@ -181,7 +181,7 @@ export const route: Route = {
             title: 'XChina 其他分类分页',
             // TODO: 确认 xchina.co 其他分类的分页 URL 结构
             source: ['xchina.co/:category/page/:page'], // 修改 source
-            target: '/:category/page/:pageRange',
+            target: '/:category/:pageRange',
         },
     ],
     handler,
