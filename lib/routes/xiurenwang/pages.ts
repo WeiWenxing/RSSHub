@@ -44,17 +44,17 @@ const fetchPageItems = async (category, page) => {
     const itemElements = $('div.paragraph');
     console.log(`[Xiurenwang Pages] Found ${itemElements.length} item elements with selector 'div.paragraph' on page ${pageUrl}.`);
 
-    const concurrencyLimit = 3; // 设置并发数量
-    const batchDelay = 1000;    // 设置批次之间的延迟 (毫秒)
-    const allItemsPromises: Promise<any>[] = itemElements.get().map(async (element, i) => { // .get() to convert Cheerio collection to array for map
-        const $item = $(element);
-        console.log(`[Xiurenwang Pages] Preparing item ${i + 1}/${itemElements.length}`);
+    // 恢复简单的 Promise.all，因为不再有耗时的详情页网络请求
+    const items = await Promise.all(
+        itemElements.get().map(async (element, i) => { // .get() to convert Cheerio collection to array for map
+            const $item = $(element);
+            console.log(`[Xiurenwang Pages] Processing item ${i + 1}/${itemElements.length}`);
 
-        // 从 "全套预览" 按钮获取详情页链接
+            // 从 "全套预览" 按钮获取详情页链接
             const detailPageLinkHref = $item.find('div.link > a.button:contains("全套预览")').attr('href');
             const relativeLink: string | undefined = typeof detailPageLinkHref === 'string' ? detailPageLinkHref : undefined;
 
-            const itemUrl = relativeLink ? `${baseUrl}${relativeLink}` : ''; // 启用 itemUrl
+            const itemUrl = relativeLink ? `${baseUrl}${relativeLink}` : ''; // itemUrl 仍然提取并用作 link
             console.log(`[Xiurenwang Pages] Item ${i + 1}: relativeLink='${relativeLink}', itemUrl='${itemUrl}'`);
 
             const title = $item.find('div.title > a').text().trim();
@@ -74,64 +74,32 @@ const fetchPageItems = async (category, page) => {
                 }
             });
 
-            let itemDescription: string | undefined;
-            if (itemUrl) {
-                console.log(`[Xiurenwang Pages] Item ${i + 1}: Attempting cache.tryGet for itemUrl='${itemUrl}'`);
-                itemDescription = await cache.tryGet(itemUrl, async () => {
-                    console.log(`[Xiurenwang Pages] Item ${i + 1}: cache.tryGet callback for itemUrl='${itemUrl}'`);
-                    const detailResponse = await got(itemUrl, { headers });
-                    const $detail = load(detailResponse.data);
-
-                    let fetchedDescription = `<p>${title}</p>`; // Start with the title
-                    // Extract images from the detail page's div.intro
-                    $detail('div.intro > img').each((_, imgElem) => {
-                        const imgSrc = $detail(imgElem).attr('src');
-                        // Use the title from the list page as alt text for detail images as well
-                        const imgAlt = $detail(imgElem).attr('alt') || title;
-                        if (imgSrc) {
-                            fetchedDescription += `<img src="${imgSrc}" alt="${imgAlt}"><br>`;
-                        }
-                    });
-                    console.log(`[Xiurenwang Pages] Detail page ${itemUrl} fetched and parsed. Description length: ${fetchedDescription.length}`);
-                    return fetchedDescription;
-                });
-            } else {
-                console.log(`[Xiurenwang Pages] Item ${i + 1}: itemUrl is empty, using description from list page.`);
-                itemDescription = initialDescription;
-            }
-            console.log(`[Xiurenwang Pages] Item ${i + 1}: final itemDescription length: ${itemDescription?.length}`);
+            // 不再访问 itemUrl 获取详情，直接使用 initialDescription
+            // if (itemUrl) {
+            //     console.log(`[Xiurenwang Pages] Item ${i + 1}: Attempting cache.tryGet for itemUrl='${itemUrl}'`);
+            //     itemDescription = await cache.tryGet(itemUrl, async () => {
+            //         // ... (注释掉所有详情页抓取和解析逻辑) ...
+            //     });
+            // } else {
+            //     itemDescription = initialDescription;
+            // }
+            const itemDescription = initialDescription; // 直接使用列表页提取的图片作为描述
+            console.log(`[Xiurenwang Pages] Item ${i + 1}: final itemDescription length: ${itemDescription?.length} (from list page)`);
 
             const resultItem = {
                 title,
-                link: itemUrl, // 现在会是详情页链接
+                link: itemUrl, // itemUrl 仍然作为链接
                 description: itemDescription,
                 pubDate: date ? parseDate(date) : undefined,
                 guid: itemUrl || `${baseUrl}/item/${category}/${title}/${date}`, // Fallback GUID if itemUrl is empty
             };
             console.log(`[Xiurenwang Pages] Item ${i + 1}: constructed item object:`, JSON.stringify(resultItem).substring(0, 200) + '...');
             return resultItem;
-    });
+        })
+    ); // 结束 Promise.all
 
-    const processedItems: any[] = []; // 指定类型为 any[]
-    for (let i = 0; i < allItemsPromises.length; i += concurrencyLimit) {
-        const batch = allItemsPromises.slice(i, i + concurrencyLimit);
-        console.log(`[Xiurenwang Pages] Processing batch from index ${i}, size ${batch.length}`);
-        try {
-            const batchResults = await Promise.all(batch);
-            processedItems.push(...batchResults);
-        } catch (error) {
-            console.error(`[Xiurenwang Pages] Error processing a batch (starting index ${i}):`, error);
-            // 可以选择是否将错误的部分结果也加入，或者跳过
-        }
-
-        if (i + concurrencyLimit < allItemsPromises.length) {
-            console.log(`[Xiurenwang Pages] Delaying ${batchDelay}ms before next batch.`);
-            await new Promise(resolve => setTimeout(resolve, batchDelay));
-        }
-    }
-
-    console.log(`[Xiurenwang Pages] fetchPageItems for ${pageUrl} finished. Total items generated: ${processedItems.length}. First item (if any): ${processedItems.length > 0 ? JSON.stringify(processedItems[0]).substring(0, 100) + '...' : 'N/A'}`);
-    return processedItems;
+    console.log(`[Xiurenwang Pages] fetchPageItems for ${pageUrl} finished. Total items generated: ${items.length}. First item (if any): ${items.length > 0 ? JSON.stringify(items[0]).substring(0, 100) + '...' : 'N/A'}`);
+    return items;
 };
 
 const handler = async (ctx) => {
