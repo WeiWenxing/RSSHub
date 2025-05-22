@@ -65,6 +65,13 @@ const fetchPageItems = async (category, page) => {
     for (const p of posts) {
         const post = p as any; // Type assertion
         const title = post.title;
+
+        // Filter out items with [VIP] in the title
+        if (title && title.includes('[VIP]')) {
+            console.log(`[Nshens Pages] Skipping VIP item: ${title}`);
+            continue; // Skip this item
+        }
+
         const itemUrl = `${baseUrl}/web/${post.y}/${post.m}/${post.d}/${post.slug}`;
         const postDate = post.date;
 
@@ -74,11 +81,9 @@ const fetchPageItems = async (category, page) => {
 
         if (thumbnailUrl) {
             itemDescription += `<img src="${thumbnailUrl}" alt="${title} (Thumbnail)"><br>`;
-            if (thumbnailUrl.includes('thumbnail.jpg') || thumbnailUrl.includes('snapshot_')) { // Common patterns for thumbnails
+            if (thumbnailUrl.includes('thumbnail.jpg') || thumbnailUrl.includes('snapshot_')) {
                 baseImageUrl = thumbnailUrl.substring(0, thumbnailUrl.lastIndexOf('/') + 1);
             } else {
-                 // If not a clear thumbnail pattern, still try to get a base path
-                 // This might need adjustment based on actual non-thumbnail image URLs
                 baseImageUrl = thumbnailUrl.substring(0, thumbnailUrl.lastIndexOf('/') + 1);
                 console.warn(`[Nshens Pages] Thumbnail URL "${thumbnailUrl}" does not match expected patterns for deriving base image path. Image sequence might be incomplete.`);
             }
@@ -93,7 +98,7 @@ const fetchPageItems = async (category, page) => {
         if (baseImageUrl && imageCount > 0) {
             for (let k = 1; k <= imageCount; k++) {
                 const imageName = k + '.jpg';
-                if (baseImageUrl + imageName !== thumbnailUrl) { // Avoid re-adding thumbnail if it's part of sequence
+                if (baseImageUrl + imageName !== thumbnailUrl) {
                     itemDescription += `<img src="${baseImageUrl}${imageName}" alt="${title} - Image ${k}"><br>`;
                 }
             }
@@ -114,7 +119,7 @@ const fetchPageItems = async (category, page) => {
 const handler = async (ctx) => {
     console.log('[Nshens Pages Handler] Entered handler.');
     const rawCategory = ctx.req.param('category');
-    const category = rawCategory || 'default'; // nshens.com - 使用一个合适的默认分类名
+    const category = rawCategory || 'default';
     console.log(`[Nshens Pages Handler] Effective category: '${category}'`);
 
     const pageRangeParam = ctx.req.param('pageRange');
@@ -132,7 +137,7 @@ const handler = async (ctx) => {
     }
 
     const allItems: any[] = [];
-    const pageProcessDelay = 3000; // 3秒延迟
+    const pageProcessDelay = 3000;
     for (let page = startPage; page <= endPage; page++) {
         try {
             console.log(`[Nshens Pages Handler] Processing page ${page}.`);
@@ -160,11 +165,11 @@ export const route: Route = {
     path: '/:category/:pageRange',
     name: 'Nshens - 分类分页范围',
     example: '/nshens/xiuren/1-3',
-    maintainers: ['your-name'], // 请替换为您的 GitHub ID
+    maintainers: ['your-name'],
     categories: ['picture'],
     features: {
         requireConfig: false,
-        requirePuppeteer: false, // Not using Puppeteer as we parse __NUXT__
+        requirePuppeteer: false,
     },
     radar: [
         {
