@@ -44,8 +44,8 @@ const fetchPageItems = async (category, page) => {
     const itemElements = $('div.left div.paragraph');
     console.log(`[Xiurenwang Pages] Found ${itemElements.length} item elements with selector 'div.left div.paragraph' on page ${pageUrl}.`);
 
-    const concurrencyLimit = 3; // 设置并发数量
-    const batchDelay = 1000;    // 设置批次之间的延迟 (毫秒)
+    const concurrencyLimit = 1; // 设置并发数量
+    const batchDelay = 3000;    // 设置批次之间的延迟 (毫秒)
     const allItemsPromises: Promise<any>[] = itemElements.get().map(async (element, i) => { // .get() to convert Cheerio collection to array for map
         const $item = $(element);
         console.log(`[Xiurenwang Pages] Preparing item ${i + 1}/${itemElements.length}`);
@@ -181,15 +181,15 @@ const handler = async (ctx) => {
     }
 
     // Manually add a test item for debugging purposes
-    const debugItem = {
-        title: 'Hardcoded Debug Item - Xiurenwang Pages',
-        link: `${baseUrl}/xiurenwang/debug_item_link`,
-        description: 'This is a hardcoded item added for debugging the pages.ts handler output.',
-        pubDate: new Date().toUTCString(),
-        guid: `${baseUrl}/xiurenwang/debug_item_link/${Date.now()}`,
-    };
-    allItems.push(debugItem);
-    console.log(`[Xiurenwang Pages Handler] Manually added a debug item. allItems.length is now: ${allItems.length}`);
+    // const debugItem = {
+    //     title: 'Hardcoded Debug Item - Xiurenwang Pages',
+    //     link: `${baseUrl}/xiurenwang/debug_item_link`,
+    //     description: 'This is a hardcoded item added for debugging the pages.ts handler output.',
+    //     pubDate: new Date().toUTCString(),
+    //     guid: `${baseUrl}/xiurenwang/debug_item_link/${Date.now()}`,
+    // };
+    // allItems.push(debugItem);
+    // console.log(`[Xiurenwang Pages Handler] Manually added a debug item. allItems.length is now: ${allItems.length}`);
 
     const feedLink = `${baseUrl}/?k=${encodeURIComponent(category)}&page=${startPage}`;
 
