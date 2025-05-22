@@ -38,11 +38,14 @@ const fetchPageItems = async (category, page) => {
         return []; // Return empty array if HTML is not valid
     }
     const $ = load(listPageHtml);
-    console.log(`[Nshens Pages] Loaded list page HTML for ${pageUrl}. Content (first 500 chars): ${String(listPageHtml).substring(0, 500)}...`);
+    // 打印完整的 listPageHtml 长度和内容供用户分析
+    console.log(`[Nshens Pages] Loaded list page HTML for ${pageUrl}. Length: ${listPageHtml.length}`);
+    console.log(`[Nshens Pages] Full HTML content for ${pageUrl}:\n${listPageHtml}`);
 
-    // nshens.com - 更新列表项选择器
-    const itemElements = $('div.row > div.col'); 
-    console.log(`[Nshens Pages] Found ${itemElements.length} item elements with selector 'div.row > div.col' on page ${pageUrl}.`);
+
+    // nshens.com - 更新列表项选择器，直接使用 div.col
+    const itemElements = $('div.col'); 
+    console.log(`[Nshens Pages] Found ${itemElements.length} item elements with selector 'div.col' on page ${pageUrl}.`);
 
     const processedItems: any[] = [];
     const itemDetailFetchDelay = 3000; // 3秒延迟
@@ -56,7 +59,7 @@ const fetchPageItems = async (category, page) => {
         // nshens.com - 更新详情页链接提取
         const detailPageLinkHref = $item.find('a').attr('href');
         const relativeLink: string | undefined = typeof detailPageLinkHref === 'string' ? detailPageLinkHref : undefined;
-        
+
         let itemUrl = '';
         if (relativeLink) {
             if (relativeLink.startsWith('http')) {

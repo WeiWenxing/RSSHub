@@ -24,6 +24,9 @@
     ```
     这条命令会查找并删除与上述路由缓存相关的TTL管理键。
 
+redis-cli KEYS "rsshub:koa-redis-cache:*" | xargs redis-cli DEL
+redis-cli KEYS "rsshub:cacheTtl:rsshub:koa-redis-cache:*" | xargs redis-cli DEL
+
 成功执行后，您应该会看到类似 `(integer) X` 的输出，其中 `X` 是被删除的键的数量。
 
 ## 关于内容缓存 (`cache.tryGet`)
