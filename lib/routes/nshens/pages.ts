@@ -94,8 +94,10 @@ const fetchPageItems = async (category, page) => {
         if (countMatch && countMatch[1]) {
             imageCount = parseInt(countMatch[1], 10);
         }
+        console.log(`[Nshens Pages] For title "${title}", derived baseImageUrl: "${baseImageUrl}", imageCount: ${imageCount}`);
 
         if (baseImageUrl && imageCount > 0) {
+            console.log(`[Nshens Pages] Entering image sequence loop for ${imageCount} images.`);
             for (let k = 1; k <= imageCount; k++) {
                 const imageName = k + '.jpg';
                 if (baseImageUrl + imageName !== thumbnailUrl) {
