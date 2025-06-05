@@ -24,7 +24,7 @@ const fetchPageItems = async (category, page) => {
         console.log(`[Nshens Pages] Cache miss or expired for list page ${pageUrl}. Fetching from network.`);
         const networkResponse = await got(pageUrl, { headers });
         return networkResponse.data;
-    }, listPageCacheTTL);
+    }, listPageCacheTTL, false);
 
     console.log(`[Nshens Pages] Successfully fetched/retrieved list page HTML for ${pageUrl}`);
     if (!listPageHtml || typeof listPageHtml !== 'string') {

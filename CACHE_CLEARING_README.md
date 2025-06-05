@@ -47,3 +47,52 @@ redis-cli DEL "rsshub:cacheTtl:内容缓存的URL键名"
 ```
 
 在调试特定路由时，通常先清除路由缓存，如果问题依旧或者您怀疑是内容缓存过旧，再考虑清除相关的内容缓存。
+
+# 查看key的过期时间：
+redis-cli TTL "https://nshens.com/web/category/xiuren/1"
+
+## 批量查看过期时间：
+redis-cli KEYS "*nshens*" | while read key; do
+    echo "Key: $key, TTL: $(redis-cli TTL "$key") seconds"
+done
+
+## 排查 nshens 缓存嵌套循环问题：
+
+### 1. 检查两个相关 key 的过期时间：
+```bash
+# 检查内容缓存的过期时间
+redis-cli TTL "https://nshens.com/web/category/xiuren/1"
+
+# 检查TTL管理键的过期时间
+redis-cli TTL "rsshub:cacheTtl:https://nshens.com/web/category/xiuren/1"
+```
+
+### 2. 查看 key 的实际内容（调试用）：
+```bash
+# 查看内容缓存的类型和大小
+redis-cli TYPE "https://nshens.com/web/category/xiuren/1"
+redis-cli STRLEN "https://nshens.com/web/category/xiuren/1"
+
+# 查看TTL管理键的内容
+redis-cli GET "rsshub:cacheTtl:https://nshens.com/web/category/xiuren/1"
+```
+
+### 3. 潜在问题分析：
+- **正常情况**：两个 key 应该有相近的过期时间，或者TTL管理键的过期时间应该 <= 内容缓存键
+- **异常情况**：如果TTL管理键的过期时间 > 内容缓存键，可能导致缓存判断错误
+- **嵌套循环风险**：如果代码逻辑中存在相互依赖，可能导致缓存永不过期
+
+### 4. 解决方案：
+```bash
+# 如果发现异常，可以手动清除这两个相关的 key
+redis-cli DEL "https://nshens.com/web/category/xiuren/1"
+redis-cli DEL "rsshub:cacheTtl:https://nshens.com/web/category/xiuren/1"
+
+# 批量清除所有 nshens 相关缓存
+redis-cli KEYS "*nshens*" | xargs redis-cli DEL
+```
+
+### 5. 预防措施：
+- 定期检查缓存键的过期时间是否合理
+- 监控是否有长期不更新的内容
+- 考虑设置更短的缓存时间用于调试
